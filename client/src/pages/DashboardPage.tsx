@@ -106,7 +106,9 @@ export default function DashboardPage() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
           {citiesData?.cities.slice(0, 8).map((city) => (
-            <CityCard key={city.id} city={city} />
+            <Link key={city.id} to="/explore" title={`Explore trips in ${city.name}`}>
+              <CityCard city={city} />
+            </Link>
           )) ?? Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="skeleton h-32 rounded-2xl" />
           ))}

@@ -3,10 +3,12 @@ import { useParams, Link } from 'react-router-dom'
 import {
   Plus, ChevronUp, ChevronDown, Trash2, X, Search,
   MapPin, Clock, Loader2, Eye, BarChart2, Pencil, CalendarDays, FileText,
+  Sparkles, ChevronDown as ChevronDownIcon, RefreshCw,
 } from 'lucide-react'
 import { useTrip, useUpdateTrip } from '../hooks/useTrips'
 import { useAddStop, useUpdateStop, useDeleteStop, useReorderStops, useAddStopActivity, useDeleteStopActivity } from '../hooks/useStops'
 import { useCities, useActivities, useCreateCity, useCreateActivity } from '../hooks/useSearch'
+import { useAISuggest, useAIBudgetEstimate, type AISuggestion, type AIBudgetEstimate } from '../hooks/useAI'
 import { formatCurrency, formatDate, getGradient, daysBetween } from '../lib/formatters'
 import type { Stop, City, Activity, Trip } from '@globetrotter/shared'
 import { clsx } from 'clsx'
@@ -786,6 +788,136 @@ function StopCard({ tripId, stop, index, total, tripStart, tripEnd, allStopIds }
   )
 }
 
+// ─── AI Suggestions Panel ────────────────────────────────────────────────────
+function AISuggestionsPanel({ tripId }: { tripId: string }) {
+  const suggest = useAISuggest()
+  const budgetEst = useAIBudgetEstimate()
+  const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
+  const [budgetEstimate, setBudgetEstimate] = useState<AIBudgetEstimate | null>(null)
+  const [open, setOpen] = useState(false)
+  const [ran, setRan] = useState(false)
+
+  const handleRun = async () => {
+    setOpen(true)
+    setRan(true)
+    const [sug, est] = await Promise.allSettled([
+      suggest.mutateAsync(tripId),
+      budgetEst.mutateAsync(tripId),
+    ])
+    if (sug.status === 'fulfilled') setSuggestions(sug.value ?? [])
+    if (est.status === 'fulfilled') setBudgetEstimate(est.value ?? null)
+  }
+
+  const isLoading = suggest.isPending || budgetEst.isPending
+
+  return (
+    <div className="glass-card overflow-hidden mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => ran && setOpen((o) => !o)}>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-violet-500/15 border border-violet-500/20 flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-white">AI Trip Suggestions</div>
+            <div className="text-xs text-slate-500">Powered by Gemini - personalized tips for your itinerary</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {ran && !isLoading && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleRun() }}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-violet-400 hover:bg-violet-500/10 transition-all"
+              title="Refresh suggestions"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {!ran ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleRun() }}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/15 text-violet-300 text-xs font-medium hover:bg-violet-500/25 transition-all disabled:opacity-50"
+            >
+              {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+              {isLoading ? 'Thinking…' : 'Get AI Suggestions'}
+            </button>
+          ) : (
+            <ChevronDownIcon
+              className={clsx('w-4 h-4 text-slate-500 transition-transform duration-200', open && 'rotate-180')}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      {open && (
+        <div className="border-t border-white/8 p-4 space-y-4 animate-fade-in">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8 gap-3 text-slate-400">
+              <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+              <span className="text-sm">Gemini is thinking about your trip…</span>
+            </div>
+          ) : (
+            <>
+              {/* Budget Estimate */}
+              {budgetEstimate && (
+                <div>
+                  <div className="text-xs font-medium text-slate-400 mb-2 flex items-center gap-1">
+                    <BarChart2 className="w-3.5 h-3.5" /> AI Budget Estimate
+                  </div>
+                  <div className="p-3 rounded-xl bg-violet-500/5 border border-violet-500/10">
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-lg font-bold text-violet-300">{formatCurrency(budgetEstimate.total)}</span>
+                      <span className="text-xs text-slate-500">estimated total</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {Object.entries(budgetEstimate.breakdown).map(([cat, amt]) => (
+                        <div key={cat} className="flex items-center justify-between px-2 py-1 rounded-lg bg-white/3">
+                          <span className="text-xs text-slate-400 capitalize">{cat}</span>
+                          <span className="text-xs font-medium text-white">{formatCurrency(amt)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Activity Suggestions */}
+              {suggestions.length > 0 && (
+                <div>
+                  <div className="text-xs font-medium text-slate-400 mb-2 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" /> Activity Suggestions
+                  </div>
+                  <div className="space-y-2">
+                    {suggestions.map((s, i) => (
+                      <div key={i} className="flex gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/5 transition-colors">
+                        <div className="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-xs text-violet-400 font-bold">{i + 1}</span>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-white mb-0.5">{s.title}</div>
+                          <div className="text-xs text-slate-400 leading-relaxed">{s.description}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {suggestions.length === 0 && !budgetEstimate && (
+                <div className="text-center py-4 text-slate-500 text-sm">
+                  No suggestions returned. Make sure your trip has at least one stop.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function ItineraryBuilderPage() {
   const { tripId } = useParams<{ tripId: string }>()
@@ -863,6 +995,9 @@ export default function ItineraryBuilderPage() {
           <Plus className="w-4 h-4" /> Add Stop
         </button>
       </div>
+
+      {/* AI Suggestions */}
+      {trip.stops.length > 0 && <AISuggestionsPanel tripId={tripId!} />}
 
       {/* Stops */}
       {trip.stops.length === 0 ? (
