@@ -1,7 +1,7 @@
 node_modules
 *.md
 .env*
-
+references
 package-lock.json
 
 # Build output

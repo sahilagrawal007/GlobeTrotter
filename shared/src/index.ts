@@ -24,7 +24,7 @@ export interface ApiError {
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
-// ─── Domain types (safe — password excluded) ─────────────────────────────────
+// ─── Domain types (safe - password excluded) ─────────────────────────────────
 
 export interface User {
   id: string;
@@ -98,7 +98,11 @@ export interface TripSummary {
   endDate: string;
   coverPhoto: string | null;
   stopCount: number;
+  isPublic: boolean;
+  shareSlug: string | null;
+  createdAt: string;
 }
+
 
 export interface BudgetBreakdown {
   totalCost: number;

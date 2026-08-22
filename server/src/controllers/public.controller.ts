@@ -4,6 +4,50 @@ import { sendSuccess, sendError } from "../utils/response";
 
 const prisma = new PrismaClient();
 
+// GET /api/public/trips - browse all public itineraries
+export async function listPublicTrips(req: Request, res: Response): Promise<void> {
+  const page = parseInt((req.query.page as string) ?? "1", 10);
+  const limit = parseInt((req.query.limit as string) ?? "12", 10);
+  const skip = (page - 1) * limit;
+
+  const [trips, total] = await Promise.all([
+    prisma.trip.findMany({
+      where: { isPublic: true },
+      skip,
+      take: limit,
+      orderBy: { updatedAt: "desc" },
+      include: {
+        user: { select: { name: true, avatarUrl: true } },
+        _count: { select: { stops: true } },
+        stops: {
+          take: 1,
+          orderBy: { order: "asc" },
+          include: { city: { select: { name: true, country: true } } },
+        },
+      },
+    }),
+    prisma.trip.count({ where: { isPublic: true } }),
+  ]);
+
+  sendSuccess(res, {
+    trips: trips.map((t) => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      startDate: t.startDate.toISOString(),
+      endDate: t.endDate.toISOString(),
+      coverPhoto: t.coverPhoto,
+      shareSlug: t.shareSlug,
+      stopCount: t._count.stops,
+      owner: t.user,
+      firstCity: t.stops[0]?.city ?? null,
+    })),
+    total,
+    page,
+    limit,
+  });
+}
+
 const FULL_TRIP_INCLUDE = {
   stops: {
     orderBy: { order: "asc" as const },

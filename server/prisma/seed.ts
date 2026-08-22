@@ -98,7 +98,7 @@ async function main() {
 
     // Kuala Lumpur
     { cityName: "Kuala Lumpur", name: "Petronas Twin Towers Visit", type: "sightseeing", cost: 1200, durationMin: 120, description: "Sky Bridge on level 41 and observation deck at level 86." },
-    { cityName: "Kuala Lumpur", name: "Jalan Alor Street Food", type: "food", cost: 600, durationMin: 90, description: "KL's premier night food street — satay, dim sum, durian." },
+    { cityName: "Kuala Lumpur", name: "Jalan Alor Street Food", type: "food", cost: 600, durationMin: 90, description: "KL's premier night food street - satay, dim sum, durian." },
     { cityName: "Kuala Lumpur", name: "Batu Caves Temple Trek", type: "culture", cost: 0, durationMin: 120, description: "Climb 272 rainbow-painted steps to the giant limestone cave temple." },
 
     // Dubai
@@ -124,7 +124,7 @@ async function main() {
     // Paris
     { cityName: "Paris", name: "Eiffel Tower & Seine Cruise", type: "sightseeing", cost: 4000, durationMin: 240, description: "Summit of the iron lady + evening river cruise under city lights." },
     { cityName: "Paris", name: "Louvre Museum Half-Day", type: "culture", cost: 2000, durationMin: 240, description: "Mona Lisa, Venus de Milo and 35,000 works in the world's largest museum." },
-    { cityName: "Paris", name: "Parisian Bistro Dinner", type: "food", cost: 3500, durationMin: 120, description: "Classic French cuisine — escargot, duck confit, crème brûlée." },
+    { cityName: "Paris", name: "Parisian Bistro Dinner", type: "food", cost: 3500, durationMin: 120, description: "Classic French cuisine - escargot, duck confit, crème brûlée." },
 
     // Rome
     { cityName: "Rome", name: "Colosseum & Roman Forum", type: "sightseeing", cost: 2500, durationMin: 240, description: "Skip-the-line tour of the ancient amphitheatre and Forum Romanum." },
@@ -132,17 +132,17 @@ async function main() {
     { cityName: "Rome", name: "Trastevere Food Walk", type: "food", cost: 1500, durationMin: 180, description: "Neighbourhood pasta, suppli, and gelato tasting walk." },
 
     // Barcelona
-    { cityName: "Barcelona", name: "Sagrada Família Visit", type: "culture", cost: 2500, durationMin: 150, description: "Gaudí's awe-inspiring basilica — towers with panoramic city views." },
+    { cityName: "Barcelona", name: "Sagrada Família Visit", type: "culture", cost: 2500, durationMin: 150, description: "Gaudí's awe-inspiring basilica - towers with panoramic city views." },
     { cityName: "Barcelona", name: "La Barceloneta Beach Day", type: "relaxation", cost: 0, durationMin: 360, description: "Sun and sea on Barcelona's urban beach with tapas nearby." },
     { cityName: "Barcelona", name: "La Boqueria Market & Tapas", type: "food", cost: 1200, durationMin: 120, description: "Vibrant covered market plus pintxos and vermouth in El Born." },
 
     // London
     { cityName: "London", name: "British Museum", type: "culture", cost: 0, durationMin: 240, description: "Rosetta Stone, Egyptian mummies and 8 million global artefacts." },
     { cityName: "London", name: "Tower of London & Tower Bridge", type: "sightseeing", cost: 3000, durationMin: 180, description: "Crown Jewels and the world's most famous bascule bridge." },
-    { cityName: "London", name: "Borough Market Food Tour", type: "food", cost: 1800, durationMin: 120, description: "London's oldest food market — artisan cheese, street food, pastries." },
+    { cityName: "London", name: "Borough Market Food Tour", type: "food", cost: 1800, durationMin: 120, description: "London's oldest food market - artisan cheese, street food, pastries." },
 
     // Amsterdam
-    { cityName: "Amsterdam", name: "Anne Frank House", type: "culture", cost: 1400, durationMin: 120, description: "The secret annex where Anne Frank hid during WWII — deeply moving." },
+    { cityName: "Amsterdam", name: "Anne Frank House", type: "culture", cost: 1400, durationMin: 120, description: "The secret annex where Anne Frank hid during WWII - deeply moving." },
     { cityName: "Amsterdam", name: "Canal Boat Tour", type: "sightseeing", cost: 1200, durationMin: 90, description: "Cruise through 165 historic canals past 17th-century gabled houses." },
     { cityName: "Amsterdam", name: "Dutch Cheese & Stroopwafel Tasting", type: "food", cost: 800, durationMin: 60, description: "Sample Gouda, Edam, and traditional Dutch sweets at a heritage shop." },
   ];

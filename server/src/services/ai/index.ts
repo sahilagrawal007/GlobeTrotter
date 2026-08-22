@@ -1,7 +1,7 @@
 // server/src/services/ai/index.ts
 //
 // AI provider interface + stub implementations.
-// The only file that changes when AI_PROVIDER flips to "gemini" —
+// The only file that changes when AI_PROVIDER flips to "gemini" -
 // nothing upstream (routes, controllers, frontend hooks) changes.
 
 import { env } from "../../config/env";

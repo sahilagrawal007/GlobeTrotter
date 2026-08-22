@@ -7,7 +7,7 @@ import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
-// Safe user shape — password never included
+// Safe user shape - password never included
 function safeUser(user: {
   id: string; email: string; name: string;
   avatarUrl: string | null; language: string; role: string; createdAt: Date;
@@ -77,7 +77,7 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
   if (!user) {
     sendSuccess(res, {
       resetToken: null,
-      _devNote: "No account with this email — token is null (dev mode)",
+      _devNote: "No account with this email - token is null (dev mode)",
     });
     return;
   }
