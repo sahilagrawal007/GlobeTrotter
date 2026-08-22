@@ -43,8 +43,17 @@ function PublicTripCard({ trip }: {
         </div>
         {/* City + nights */}
         <div className="absolute bottom-3 left-3 text-white">
-          {trip.firstCity && <div className="text-sm font-bold">{trip.firstCity.name}</div>}
-          <div className="text-xs text-white/70">{nights} nights</div>
+          {trip.firstCity && (
+            <div className="text-sm font-semibold flex items-baseline gap-1.5">
+              <span>{trip.firstCity.name}</span>
+              {trip.stopCount > 1 && (
+                <span className="text-xs font-normal text-white/60">
+                  + {trip.stopCount - 1} more
+                </span>
+              )}
+            </div>
+          )}
+          <div className="text-xs text-white/60">{nights} nights</div>
         </div>
       </div>
 

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
-  PieChart, Pie, Cell, LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { ShieldCheck, Users, Map, TrendingUp, Compass } from 'lucide-react'
 import { useAdminStats, useAdminUsers, useAdminTrips } from '../hooks/useSearch'
@@ -121,19 +120,39 @@ export default function AdminPage() {
             </div>
 
             {/* Top Activities bar */}
-            <div className="glass-card p-6">
-              <h2 className="text-sm font-semibold text-slate-300 mb-4">Popular Activities</h2>
+            <div className="glass-card p-6 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-slate-300">Popular Activities</h2>
+                <span className="text-xs text-slate-500">Top 5</span>
+              </div>
               {topActivitiesData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={150}>
-                  <BarChart data={topActivitiesData} layout="vertical" barSize={14}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                    <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} width={90} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="count" fill="#F59E0B" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <div className="text-slate-500 text-sm text-center py-8">No data yet</div>}
+                <div className="space-y-3">
+                  {topActivitiesData.map((a) => {
+                    const maxCount = Math.max(...topActivitiesData.map((d) => d.count), 1)
+                    const percent = Math.max(Math.round((a.count / maxCount) * 100), 10)
+                    return (
+                      <div key={a.name} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-300 font-medium truncate pr-2" title={a.name}>
+                            {a.name}
+                          </span>
+                          <span className="text-amber-400 font-semibold flex-shrink-0">
+                            {a.count} {a.count === 1 ? 'trip' : 'trips'}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-500"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-slate-500 text-sm text-center py-8">No data yet</div>
+              )}
             </div>
           </div>
         </div>
