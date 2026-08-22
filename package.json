@@ -1,0 +1,19 @@
+{
+  "name": "globetrotter",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names \"server,client\" --prefix-colors \"cyan,magenta\" \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
+    "build": "npm run build --workspace shared && npm run build --workspace server && npm run build --workspace client",
+    "prisma:migrate": "npm run prisma:migrate --workspace server",
+    "prisma:seed": "npm run prisma:seed --workspace server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

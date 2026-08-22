@@ -1,0 +1,19 @@
+node_modules
+*.md
+.env*
+
+package-lock.json
+
+# Build output
+dist/
+build/
+
+# SQLite database (regenerated via migrate + seed)
+server/prisma/dev.db
+server/prisma/dev.db-journal
+
+# Shared compiled output
+shared/dist/
+
+# OS
+.DS_Store

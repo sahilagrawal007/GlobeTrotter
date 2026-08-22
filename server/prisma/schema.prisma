@@ -1,0 +1,86 @@
+// server/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  password         String    // bcrypt hash, never returned in any response
+  name             String
+  avatarUrl        String?
+  language         String    @default("en")
+  role             String    @default("user") // "user" | "admin"
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  trips            Trip[]
+}
+
+model Trip {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  coverPhoto  String?
+  isPublic    Boolean  @default(false)
+  shareSlug   String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  stops       Stop[]
+}
+
+model Stop {
+  id            String         @id @default(cuid())
+  tripId        String
+  trip          Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  cityId        String
+  city          City           @relation(fields: [cityId], references: [id])
+  startDate     DateTime
+  endDate       DateTime
+  order         Int
+  transportCost Float          @default(0)
+  stayCost      Float          @default(0)
+  mealsCost     Float          @default(0)
+  activities    StopActivity[]
+}
+
+model City {
+  id         String     @id @default(cuid())
+  name       String
+  country    String
+  costIndex  Int        // 1 (cheap) – 5 (expensive)
+  imageUrl   String?
+  activities Activity[]
+  stops      Stop[]
+}
+
+model Activity {
+  id          String         @id @default(cuid())
+  cityId      String
+  city        City           @relation(fields: [cityId], references: [id])
+  name        String
+  type        String         // "sightseeing" | "food" | "adventure" | "culture" | "relaxation"
+  cost        Float
+  durationMin Int
+  description String?
+  stopLinks   StopActivity[]
+}
+
+model StopActivity {
+  id            String    @id @default(cuid())
+  stopId        String
+  stop          Stop      @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  activityId    String
+  activity      Activity  @relation(fields: [activityId], references: [id])
+  scheduledTime DateTime?
+}
