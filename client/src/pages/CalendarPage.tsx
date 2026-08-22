@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, MapPin, ArrowLeft } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, ArrowLeft, Clock } from 'lucide-react'
 import { useTrip } from '../hooks/useTrips'
-import { formatCurrency, getGradient } from '../lib/formatters'
+import { formatCurrency, formatTime, getGradient } from '../lib/formatters'
 import type { Stop } from '@globetrotter/shared'
 import { clsx } from 'clsx'
 
@@ -13,22 +13,28 @@ function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay()
 }
 
-function isBetween(date: Date, start: Date, end: Date) {
-  return date >= start && date <= end
-}
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
-const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const TYPE_COLORS: Record<string, string> = {
+  sightseeing: 'bg-blue-500/15 text-blue-400',
+  food: 'bg-orange-500/15 text-orange-400',
+  adventure: 'bg-red-500/15 text-red-400',
+  culture: 'bg-violet-500/15 text-violet-400',
+  relaxation: 'bg-teal-500/15 text-teal-400',
+}
 
 export default function CalendarPage() {
   const { tripId } = useParams<{ tripId: string }>()
   const { data: trip, isLoading } = useTrip(tripId)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
-  const today = new Date()
-  const tripStart = trip ? new Date(trip.startDate) : today
-  const [year, setYear] = useState(tripStart.getFullYear())
-  const [month, setMonth] = useState(tripStart.getMonth())
+  // Derive initial year/month from the ISO date string directly (no new Date() = no timezone shift)
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const tripStartStr = trip?.startDate.slice(0, 10) ?? todayStr
+  const [year, setYear] = useState(() => parseInt(tripStartStr.slice(0, 4), 10))
+  const [month, setMonth] = useState(() => parseInt(tripStartStr.slice(5, 7), 10) - 1)
+
 
   if (isLoading) return <div className="max-w-3xl mx-auto skeleton h-96 rounded-2xl" />
   if (!trip) return <div className="text-center py-20 text-slate-400">Trip not found</div>
@@ -37,27 +43,40 @@ export default function CalendarPage() {
   const firstDay = getFirstDayOfMonth(year, month)
 
   // Build day metadata
+  // Use pure string comparison on YYYY-MM-DD — immune to timezone shifts.
+  // All dates stored as UTC midnight, so .slice(0,10) always gives the correct calendar date.
   const dayMeta: Record<number, { stops: Stop[]; activities: Stop['activities'] }> = {}
+
   trip.stops.forEach((stop) => {
-    const start = new Date(stop.startDate)
-    const end = new Date(stop.endDate)
+    const startStr = stop.startDate.slice(0, 10)
+    const endStr = stop.endDate.slice(0, 10)
+
     for (let d = 1; d <= daysInMonth; d++) {
-      const dt = new Date(year, month, d)
-      if (isBetween(dt, start, end)) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      if (dateStr >= startStr && dateStr <= endStr) {
         if (!dayMeta[d]) dayMeta[d] = { stops: [], activities: [] }
         dayMeta[d].stops.push(stop)
-        const dateStr = dt.toISOString().slice(0, 10)
-        const dayActivities = stop.activities.filter((sa) =>
-          sa.scheduledTime ? sa.scheduledTime.slice(0, 10) === dateStr : false
-        )
-        dayMeta[d].activities.push(...dayActivities)
+
+        stop.activities.forEach((sa) => {
+          if (sa.scheduledTime) {
+            // Has a scheduled time - only show on that specific day
+            if (sa.scheduledTime.slice(0, 10) === dateStr) {
+              dayMeta[d].activities.push(sa)
+            }
+          } else {
+            // No scheduled time - show on every day of this stop
+            // (avoids duplicates: only add if not already present)
+            if (!dayMeta[d].activities.find((a) => a.id === sa.id)) {
+              dayMeta[d].activities.push(sa)
+            }
+          }
+        })
       }
     }
   })
 
-  const selectedMeta = selectedDate
-    ? dayMeta[parseInt(selectedDate.split('-')[2])]
-    : null
+  const selectedDay = selectedDate ? parseInt(selectedDate.split('-')[2]) : null
+  const selectedMeta = selectedDay ? dayMeta[selectedDay] : null
 
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(year - 1) } else setMonth(month - 1) }
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear(year + 1) } else setMonth(month + 1) }
@@ -74,12 +93,15 @@ export default function CalendarPage() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-slate-400">
+      <div className="flex items-center gap-5 text-xs text-slate-400">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-teal-500/30 border border-teal-500/40" />Trip range
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-amber-400" />Activities scheduled
+          <div className="w-2 h-2 rounded-full bg-amber-400" />Activities (scheduled or unscheduled)
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full bg-amber-400 opacity-40" />No activities
         </div>
       </div>
 
@@ -117,7 +139,7 @@ export default function CalendarPage() {
             const isToday = new Date().toISOString().slice(0, 10) === dateStr
             const isSelected = selectedDate === dateStr
             const isTrip = !!meta
-            const grad = meta?.stops[0] ? getGradient(meta.stops[0].city.name) : ''
+            const hasActivities = (meta?.activities.length ?? 0) > 0
 
             return (
               <div
@@ -140,11 +162,14 @@ export default function CalendarPage() {
                     {meta.stops[0].city.name}
                   </div>
                 )}
-                {meta?.activities.length > 0 && (
+                {hasActivities && (
                   <div className="flex gap-0.5 mt-0.5">
-                    {meta.activities.slice(0, 3).map((_, j) => (
+                    {meta!.activities.slice(0, 3).map((_, j) => (
                       <div key={j} className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                     ))}
+                    {meta!.activities.length > 3 && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400/40" />
+                    )}
                   </div>
                 )}
               </div>
@@ -156,27 +181,58 @@ export default function CalendarPage() {
       {/* Selected day detail */}
       {selectedDate && selectedMeta && (
         <div className="glass-card p-5 animate-slide-up">
-          <div className="text-sm font-semibold text-white mb-3">
-            {new Date(selectedDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            {selectedMeta.stops.map((s) => (
-              <div key={s.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs">
-                <MapPin className="w-2.5 h-2.5" /> {s.city.name}
+          {/* Date + city chips */}
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="text-base font-semibold text-white">
+                {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </div>
-            ))}
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {selectedMeta.stops.map((s) => (
+                  <div key={s.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs">
+                    <MapPin className="w-2.5 h-2.5" /> {s.city.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="text-xs text-slate-500 flex-shrink-0">
+              {selectedMeta.activities.length} {selectedMeta.activities.length === 1 ? 'activity' : 'activities'}
+            </div>
           </div>
+
+          {/* Activities list */}
           {selectedMeta.activities.length > 0 ? (
             <div className="space-y-2">
               {selectedMeta.activities.map((sa) => (
-                <div key={sa.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white/5">
-                  <div className="text-sm text-white">{sa.activity.name}</div>
-                  <div className="text-xs text-amber-400 font-medium">{formatCurrency(sa.activity.cost)}</div>
+                <div key={sa.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+                  {/* Type badge */}
+                  <span className={clsx(
+                    'text-xs px-2 py-0.5 rounded-full capitalize flex-shrink-0',
+                    TYPE_COLORS[sa.activity.type] ?? 'bg-slate-500/15 text-slate-400'
+                  )}>
+                    {sa.activity.type}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-white truncate">{sa.activity.name}</div>
+                    {sa.activity.description && (
+                      <div className="text-xs text-slate-500 truncate mt-0.5">{sa.activity.description}</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    {sa.activity.durationMin > 0 && (
+                      <span className="text-xs text-slate-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />{sa.activity.durationMin}m
+                      </span>
+                    )}
+                    <span className="text-xs text-amber-400 font-semibold">
+                      {formatCurrency(sa.activity.cost)}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-500 italic">No activities scheduled - enjoy the day!</p>
+            <p className="text-xs text-slate-500 italic py-4 text-center">No activities for this day - free time! 🌅</p>
           )}
         </div>
       )}

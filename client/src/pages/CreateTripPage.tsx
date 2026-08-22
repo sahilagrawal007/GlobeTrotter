@@ -37,8 +37,8 @@ export default function CreateTripPage() {
     try {
       const trip = await createTrip.mutateAsync({
         ...data,
-        startDate: new Date(data.startDate).toISOString(),
-        endDate: new Date(data.endDate + 'T23:59:59').toISOString(),
+        startDate: data.startDate + 'T00:00:00Z',
+        endDate: data.endDate + 'T00:00:00Z',
       })
       navigate(`/trips/${trip.id}/builder`)
     } catch (err) {

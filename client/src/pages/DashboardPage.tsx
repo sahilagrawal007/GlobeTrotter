@@ -66,7 +66,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-slate-400 text-sm mb-1">{greeting},</p>
             <h1 className="text-3xl font-bold text-white mb-3">
-              {user?.name?.split(' ')[0] ?? 'Traveler'} <span className="text-gradient">✈️</span>
+              {user?.name?.split(' ')[0] ?? 'Traveler'}
             </h1>
             <p className="text-slate-400 max-w-md">
               {ongoing.length > 0

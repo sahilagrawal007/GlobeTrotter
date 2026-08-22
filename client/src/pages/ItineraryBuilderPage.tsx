@@ -72,8 +72,8 @@ function AddStopModal({ tripId, tripStart, tripEnd, onClose }: {
 
     await addStop.mutateAsync({
       cityId: cityToUse.id,
-      startDate: new Date(startDate).toISOString(),
-      endDate: new Date(endDate + 'T23:59:59').toISOString(),
+      startDate: startDate + 'T00:00:00Z',
+      endDate: endDate + 'T00:00:00Z',
     })
     onClose()
   }
@@ -184,9 +184,9 @@ function AddStopModal({ tripId, tripStart, tripEnd, onClose }: {
           </div>
         )}
 
-        {/* Dates — constrained to trip's date range */}
+        {/* Dates - constrained to trip's date range */}
         <div className="mb-3 p-2.5 rounded-xl bg-teal-500/5 border border-teal-500/10">
-          <p className="text-xs text-teal-400/70 mb-2">Stay within trip dates: <span className="font-medium text-teal-400">{tripStart} to {tripEnd}</span></p>
+          <p className="text-xs text-teal-400/70 mb-2">Stay within trip dates: <span className="font-medium text-teal-400">{formatDate(tripStart)} to {formatDate(tripEnd)}</span></p>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1.5">Arrival</label>
@@ -234,12 +234,25 @@ function AddStopModal({ tripId, tripStart, tripEnd, onClose }: {
 function ActivityPicker({ tripId, stop, onClose }: { tripId: string; stop: Stop; onClose: () => void }) {
   const [typeFilter, setTypeFilter] = useState('')
   const [maxCost, setMaxCost] = useState(50000)
+  const [scheduledDate, setScheduledDate] = useState('')   // YYYY-MM-DD, optional
+  const [scheduledTime, setScheduledTime] = useState('')   // HH:MM, optional
   const [showCustomForm, setShowCustomForm] = useState(false)
   const [customName, setCustomName] = useState('')
   const [customType, setCustomType] = useState('sightseeing')
   const [customCost, setCustomCost] = useState('')
   const [customDuration, setCustomDuration] = useState('60')
   const [customDesc, setCustomDesc] = useState('')
+
+  const stopStart = stop.startDate.slice(0, 10)
+  const stopEnd = stop.endDate.slice(0, 10)
+
+  // Build a UTC ISO scheduledTime from date + optional time
+  const buildScheduledTime = () => {
+    if (!scheduledDate) return undefined
+    const t = scheduledTime || '09:00'
+    // Use explicit Z suffix so this is always stored as the correct UTC time
+    return `${scheduledDate}T${t}:00Z`
+  }
 
   const { data } = useActivities({ cityId: stop.cityId, type: typeFilter || undefined, maxCost })
   const addAct = useAddStopActivity(tripId)
@@ -248,6 +261,7 @@ function ActivityPicker({ tripId, stop, onClose }: { tripId: string; stop: Stop;
 
   const handleCreateCustom = async () => {
     if (!customName.trim()) return
+    const sTime = buildScheduledTime()
     const newAct = await createAct.mutateAsync({
       cityId: stop.cityId,
       name: customName.trim(),
@@ -256,9 +270,7 @@ function ActivityPicker({ tripId, stop, onClose }: { tripId: string; stop: Stop;
       durationMin: parseInt(customDuration) || 60,
       description: customDesc.trim() || undefined,
     })
-    // Immediately add it to the stop
-    await addAct.mutateAsync({ stopId: stop.id, data: { activityId: newAct.id } })
-    // Reset form
+    await addAct.mutateAsync({ stopId: stop.id, data: { activityId: newAct.id, scheduledTime: sTime } })
     setCustomName(''); setCustomCost(''); setCustomDuration('60'); setCustomDesc('')
     setShowCustomForm(false)
   }
@@ -270,7 +282,11 @@ function ActivityPicker({ tripId, stop, onClose }: { tripId: string; stop: Stop;
         <div className="flex items-center justify-between p-4 border-b border-white/8 flex-shrink-0">
           <div>
             <h3 className="text-base font-semibold text-white">Activities - {stop.city.name}</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Pick from the list or create a custom one</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {stopStart === stopEnd
+                ? formatDate(stopStart)
+                : `${formatDate(stopStart)} to ${formatDate(stopEnd)}`}
+            </p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
@@ -289,6 +305,43 @@ function ActivityPicker({ tripId, stop, onClose }: { tripId: string; stop: Stop;
             <span className="text-xs text-slate-500 w-16 flex-shrink-0">Max cost</span>
             <input type="range" min={0} max={50000} step={500} value={maxCost} onChange={(e) => setMaxCost(Number(e.target.value))} className="flex-1 accent-teal-500" />
             <span className="text-xs text-teal-400 w-20 text-right flex-shrink-0">{formatCurrency(maxCost)}</span>
+          </div>
+          {/* Optional date + time scheduling */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-3">
+              <CalendarDays className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" />
+              <span className="text-xs text-slate-400 flex-shrink-0 w-20">Schedule for</span>
+              <input
+                type="date"
+                value={scheduledDate}
+                min={stopStart}
+                max={stopEnd}
+                onChange={(e) => { setScheduledDate(e.target.value); if (!e.target.value) setScheduledTime('') }}
+                className="input text-xs py-1.5 flex-1"
+                id="activity-schedule-date"
+              />
+              {scheduledDate && (
+                <button
+                  onClick={() => { setScheduledDate(''); setScheduledTime('') }}
+                  className="text-xs text-slate-500 hover:text-white flex-shrink-0"
+                >Clear</button>
+              )}
+              {!scheduledDate && <span className="text-xs text-slate-600 italic flex-shrink-0">all days</span>}
+            </div>
+            {scheduledDate && (
+              <div className="flex items-center gap-3">
+                <Clock className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                <span className="text-xs text-slate-400 flex-shrink-0 w-20">Time</span>
+                <input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  className="input text-xs py-1.5 w-36"
+                  id="activity-schedule-time"
+                />
+                <span className="text-xs text-slate-600 italic">{scheduledTime ? '' : 'defaults to 09:00'}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -315,7 +368,10 @@ function ActivityPicker({ tripId, stop, onClose }: { tripId: string; stop: Stop;
                 </div>
                 <button
                   disabled={added || addAct.isPending}
-                  onClick={() => addAct.mutate({ stopId: stop.id, data: { activityId: act.id } })}
+                  onClick={() => {
+                    const sTime = buildScheduledTime()
+                    addAct.mutate({ stopId: stop.id, data: { activityId: act.id, scheduledTime: sTime } })
+                  }}
                   className={clsx('text-xs px-3 py-1.5 rounded-lg transition-all flex-shrink-0', added ? 'bg-teal-500/10 text-teal-500 cursor-default' : 'btn-primary py-1.5 text-xs')}
                 >
                   {added ? '✓ Added' : '+ Add'}
@@ -556,7 +612,7 @@ function StopCard({ tripId, stop, index, total, tripStart, tripEnd, allStopIds }
   tripStart: string; tripEnd: string; allStopIds: string[]
 }) {
   const [showPicker, setShowPicker] = useState(false)
-  // Controlled state for dates — initialised from server data.
+  // Controlled state for dates - initialised from server data.
   // Using useState (not defaultValue) so min/max constraints update reactively
   // when trip dates change (e.g. after copying a trip or editing trip details).
   const [arrivalVal, setArrivalVal] = useState(stop.startDate.slice(0, 10))
@@ -580,19 +636,19 @@ function StopCard({ tripId, stop, index, total, tripStart, tripEnd, allStopIds }
     setArrivalVal(value)
     // If departure would be before new arrival, snap it forward
     if (departureVal < value) setDepartureVal(value)
-    updateStop.mutate({ stopId: stop.id, data: { startDate: new Date(value + 'T00:00:00').toISOString() } })
+    updateStop.mutate({ stopId: stop.id, data: { startDate: value + 'T00:00:00Z' } })
   }
 
   const handleDepartureChange = (value: string) => {
     if (!value) return
     setDepartureVal(value)
-    updateStop.mutate({ stopId: stop.id, data: { endDate: new Date(value + 'T23:59:59').toISOString() } })
+    updateStop.mutate({ stopId: stop.id, data: { endDate: value + 'T00:00:00Z' } })
   }
 
   const handleReorder = (dir: 'up' | 'down') => {
     const ids = [...allStopIds]
     const swapIdx = dir === 'up' ? index - 1 : index + 1
-    ;[ids[index], ids[swapIdx]] = [ids[swapIdx], ids[index]]
+      ;[ids[index], ids[swapIdx]] = [ids[swapIdx], ids[index]]
     reorder.mutate(ids)
   }
 

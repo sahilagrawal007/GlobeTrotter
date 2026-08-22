@@ -32,7 +32,7 @@ export async function listActivities(req: Request, res: Response): Promise<void>
   sendSuccess(res, { activities, total });
 }
 
-// POST /api/activities — create a custom activity for any city
+// POST /api/activities - create a custom activity for any city
 export async function createActivity(req: Request, res: Response): Promise<void> {
   const { cityId, name, type, cost, durationMin, description } = req.body as {
     cityId: string;

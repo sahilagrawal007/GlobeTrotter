@@ -5,7 +5,7 @@ import {
   Copy, Check, ChevronDown, ChevronUp, Globe,
 } from 'lucide-react'
 import { useTrip, useShareTrip } from '../hooks/useTrips'
-import { formatCurrency, formatDate, formatDateRange, getGradient, daysBetween } from '../lib/formatters'
+import { formatCurrency, formatDate, formatDateRange, formatTime, getGradient, daysBetween } from '../lib/formatters'
 import { clsx } from 'clsx'
 import type { Stop } from '@globetrotter/shared'
 
@@ -152,7 +152,7 @@ function StopCityView({ stop }: { stop: Stop }) {
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-bold text-amber-400">{formatCurrency(sa.activity.cost)}</div>
-                          {sa.scheduledTime && <div className="text-xs text-slate-500">{new Date(sa.scheduledTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>}
+                          {sa.scheduledTime && <div className="text-xs text-slate-500">{formatTime(sa.scheduledTime)}</div>}
                         </div>
                       </div>
                       {sa.activity.description && <p className="text-xs text-slate-500 mt-1.5">{sa.activity.description}</p>}
@@ -233,7 +233,7 @@ export default function ItineraryViewPage() {
           {trip.stops.map((stop) => <StopCityView key={stop.id} stop={stop} />)}
         </div>
       ) : (
-        <DayView stops={trip.stops} />
+        <DayView stops={trip.stops} tripStartDate={trip.startDate} />
       )}
 
       {showShare && (
@@ -248,63 +248,99 @@ export default function ItineraryViewPage() {
   )
 }
 
-function DayView({ stops }: { stops: Stop[] }) {
-  // Group all activities by date across stops
+
+function DayView({ stops, tripStartDate }: { stops: Stop[]; tripStartDate: string }) {
+  // All stored dates are UTC midnight, so .slice(0,10) always gives the correct
+  // calendar date. String comparison is lexicographically = chronologically correct for ISO dates.
   type DayEntry = { date: string; stop: Stop; activities: Stop['activities'] }
   const days: DayEntry[] = []
 
   stops.forEach((stop) => {
-    const start = new Date(stop.startDate)
-    const end = new Date(stop.endDate)
-    let cur = new Date(start)
-    while (cur <= end) {
-      const dateStr = cur.toISOString().slice(0, 10)
-      const dayActivities = stop.activities.filter((sa) =>
-        sa.scheduledTime ? sa.scheduledTime.slice(0, 10) === dateStr : false
-      )
-      if (!days.find((d) => d.date === dateStr && d.stop.id === stop.id)) {
-        days.push({ date: dateStr, stop, activities: dayActivities })
+    const startStr = stop.startDate.slice(0, 10)
+    const endStr = stop.endDate.slice(0, 10)
+
+    // Iterate each calendar day in the stop range using UTC-safe arithmetic
+    let cur = startStr
+    while (cur <= endStr) {
+      const dayActivities = stop.activities.filter((sa) => {
+        if (sa.scheduledTime) {
+          return sa.scheduledTime.slice(0, 10) === cur
+        }
+        return true  // no date set - show on every day of this stop
+      })
+
+      if (!days.find((d) => d.date === cur && d.stop.id === stop.id)) {
+        days.push({ date: cur, stop, activities: dayActivities })
       }
-      cur = new Date(cur.getTime() + 86400000)
+
+      // Advance by one day using UTC Date (safe: T00:00:00Z + 1 day = next day)
+      const next = new Date(cur + 'T00:00:00Z')
+      next.setUTCDate(next.getUTCDate() + 1)
+      cur = next.toISOString().slice(0, 10)
     }
   })
 
   days.sort((a, b) => a.date.localeCompare(b.date))
 
+  const tripStartStr = tripStartDate.slice(0, 10)
+  const getDayNum = (dateStr: string) => {
+    const msPerDay = 86400000
+    const start = new Date(tripStartStr + 'T00:00:00Z').getTime()
+    const cur2 = new Date(dateStr + 'T00:00:00Z').getTime()
+    return Math.round((cur2 - start) / msPerDay) + 1
+  }
+
   return (
     <div className="space-y-4">
-      {days.map((day, i) => (
-        <div key={`${day.date}-${day.stop.id}`} className="glass-card overflow-hidden">
-          <div className="flex items-center gap-3 p-4 border-b border-white/8">
-            <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-teal-400 text-xs font-bold">D{i + 1}</span>
-            </div>
-            <div>
-              <div className="text-white font-medium">{formatDate(day.date)}</div>
-              <div className="text-xs text-slate-500 flex items-center gap-1">
-                <MapPin className="w-2.5 h-2.5" /> {day.stop.city.name}
+      {days.map((day) => {
+        const dayNum = getDayNum(day.date)
+        return (
+          <div key={`${day.date}-${day.stop.id}`} className="glass-card overflow-hidden">
+            <div className="flex items-center gap-3 p-4 border-b border-white/8">
+              <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-teal-400 text-xs font-bold">D{dayNum}</span>
+              </div>
+              <div className="flex-1">
+                <div className="text-white font-medium">{formatDate(day.date)}</div>
+                <div className="text-xs text-slate-500 flex items-center gap-1">
+                  <MapPin className="w-2.5 h-2.5" /> {day.stop.city.name}
+                </div>
+              </div>
+              <div className="text-xs text-slate-600">
+                {day.activities.length} {day.activities.length === 1 ? 'activity' : 'activities'}
               </div>
             </div>
-          </div>
-          <div className="p-4">
-            {day.activities.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">No scheduled activities for this day</p>
-            ) : (
-              <div className="space-y-2">
-                {day.activities.map((sa) => (
-                  <div key={sa.id} className="flex items-center gap-3 p-2 rounded-lg bg-white/3">
-                    <div className="text-xs text-slate-500 w-12 flex-shrink-0">
-                      {sa.scheduledTime ? new Date(sa.scheduledTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--'}
+            <div className="p-4">
+              {day.activities.length === 0 ? (
+                <p className="text-xs text-slate-500 italic">Free day - no activities planned</p>
+              ) : (
+                <div className="space-y-2">
+                  {day.activities.map((sa) => (
+                    <div key={sa.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/3 border border-white/5">
+                      <div className="text-xs text-slate-500 w-16 flex-shrink-0 text-center">
+                        {sa.scheduledTime
+                          ? formatTime(sa.scheduledTime)
+                          : <span className="italic text-slate-600">anytime</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-white font-medium truncate">{sa.activity.name}</div>
+                        <span className={clsx('text-xs px-1.5 py-0.5 rounded-full capitalize', TYPE_COLORS[sa.activity.type] ?? 'bg-slate-500/15 text-slate-400')}>
+                          {sa.activity.type}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs text-slate-500">{sa.activity.durationMin}m</span>
+                        <span className="text-xs text-amber-400 font-semibold">{formatCurrency(sa.activity.cost)}</span>
+                      </div>
                     </div>
-                    <div className="flex-1 text-sm text-white">{sa.activity.name}</div>
-                    <div className="text-xs text-amber-400 font-medium">{formatCurrency(sa.activity.cost)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
+
